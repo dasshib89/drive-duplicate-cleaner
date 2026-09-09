@@ -1,32 +1,19 @@
 import streamlit as st
-import json
 from google.oauth2 import service_account
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def get_drive_service():
-    # 1. Try reading directly from Streamlit Secrets
     if "google_credentials" in st.secrets:
         creds_dict = dict(st.secrets["google_credentials"])
-        
-        # Check if service account or installed app credentials
-        if "type" in creds_dict and creds_dict["type"] == "service_account":
-            creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-            return build('drive', 'v3', credentials=creds)
-        else:
-            if "installed" not in creds_dict and "web" not in creds_dict:
-                creds_dict = {"installed": creds_dict}
-            flow = InstalledAppFlow.from_client_config(creds_dict, SCOPES)
-            # Use console flow for web environments if needed
-            creds = flow.run_local_server(port=0)
-            return build('drive', 'v3', credentials=creds)
-            
-    # 2. Fallback to local file if secrets are missing
-    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-    creds = flow.run_local_server(port=0)
-    return build('drive', 'v3', credentials=creds)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=SCOPES
+        )
+        return build('drive', 'v3', credentials=creds)
+    else:
+        st.error("Secrets-এ google_credentials পাওয়া যায়নি!")
+        return None
 
 st.set_page_config(page_title="Drive Cleaner Pro", page_icon="⚡", layout="wide")
 
@@ -48,6 +35,9 @@ if st.button("🚀 START SCANNING DRIVE NOW", use_container_width=True):
     with st.spinner("Connecting to Google Drive..."):
         try:
             service = get_drive_service()
-            st.success("Successfully connected to Google Drive!")
+            if service:
+                # Test connection by listing 1 file
+                results = service.files().list(pageSize=1, fields="files(id, name)").execute()
+                st.success("Successfully connected to Google Drive API!")
         except Exception as e:
             st.error(f"Error connecting to Drive: {e}")
