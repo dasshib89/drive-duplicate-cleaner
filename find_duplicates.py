@@ -7,6 +7,11 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 def get_drive_service():
     if "google_credentials" in st.secrets:
         creds_dict = dict(st.secrets["google_credentials"])
+        
+        # Ensure private key formatting handles newlines properly
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace('\\n', '\n')
+            
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=SCOPES
         )
