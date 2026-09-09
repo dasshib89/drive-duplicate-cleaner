@@ -1,20 +1,30 @@
 import streamlit as st
 import json
-from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def get_drive_service():
+    # 1. Try reading directly from Streamlit Secrets
     if "google_credentials" in st.secrets:
         creds_dict = dict(st.secrets["google_credentials"])
-        if "installed" not in creds_dict and "web" not in creds_dict:
-            creds_dict = {"installed": creds_dict}
-        flow = InstalledAppFlow.from_client_config(creds_dict, SCOPES)
-    else:
-        flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-    
+        
+        # Check if service account or installed app credentials
+        if "type" in creds_dict and creds_dict["type"] == "service_account":
+            creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+            return build('drive', 'v3', credentials=creds)
+        else:
+            if "installed" not in creds_dict and "web" not in creds_dict:
+                creds_dict = {"installed": creds_dict}
+            flow = InstalledAppFlow.from_client_config(creds_dict, SCOPES)
+            # Use console flow for web environments if needed
+            creds = flow.run_local_server(port=0)
+            return build('drive', 'v3', credentials=creds)
+            
+    # 2. Fallback to local file if secrets are missing
+    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
     creds = flow.run_local_server(port=0)
     return build('drive', 'v3', credentials=creds)
 
